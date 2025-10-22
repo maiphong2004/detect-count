@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>YOLOv8 - Nhận dạng & Đếm người</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f6fa; margin: 0; text-align: center; }
+    h1 { background-color: #007bff; color: white; padding: 15px; margin: 0; }
+    .upload-box { margin-top: 20px; padding: 20px; background: white; border-radius: 10px; display: inline-block; }
+    input[type=file] { margin: 10px; }
+    button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    button.stop-btn { background: #dc3545; }
+    img, video { max-width: 80%; margin-top: 20px; border-radius: 10px; }
+    #camera-container { display: none; margin-top: 20px; }
+    #count-display { font-size: 22px; color: #28a745; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>👥 Nhận dạng & Đếm người (YOLOv8)</h1>
+
+  <div class="upload-box">
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept="image/*,video/*" required>
+      <button type="submit">📤 Tải lên & Nhận dạng</button>
+    </form>
+
+    <button onclick="startCamera()">📸 Bật Camera</button>
+    <button class="stop-btn" onclick="stopCamera()">🛑 Tắt Camera</button>
+  </div>
+
+  {% if uploaded_image %}
+    <h3>File gốc:</h3>
+    {% if uploaded_image.endswith('.mp4') %}
+      <video src="{{ uploaded_image }}" controls></video>
+    {% else %}
+      <img src="{{ uploaded_image }}" alt="Ảnh gốc">
+    {% endif %}
+  {% endif %}
+
+  {% if output_image %}
+    <h3>Kết quả nhận dạng ảnh:</h3>
+    <img src="{{ output_image }}" alt="Kết quả nhận dạng">
+    <div id="count-display">Số người phát hiện: {{ count }}</div>
+  {% endif %}
+
+  {% if output_video %}
+    <h3>Kết quả nhận dạng video:</h3>
+    <video src="{{ output_video }}" controls></video>
+    <div id="count-display">{{ count }}</div>
+  {% endif %}
+
+  <div id="camera-container">
+    <h3>Camera trực tiếp:</h3>
+    <img id="camera-stream" src="/camera_feed" alt="Camera stream">
+    <div id="count-display">Số người hiện tại: 0</div>
+  </div>
+
+  <script>
+    let cameraActive = false;
+
+    function startCamera() {
+      if (cameraActive) return;
+      fetch('/toggle_camera', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' })
+      }).then(() => {
+        document.getElementById('camera-container').style.display = 'block';
+        cameraActive = true;
+        updateCount();
+      });
+    }
+
+    function stopCamera() {
+      fetch('/toggle_camera', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      }).then(() => {
+        document.getElementById('camera-container').style.display = 'none';
+        cameraActive = false;
+      });
+    }
+
+    function updateCount() {
+      if (!cameraActive) return;
+      fetch('/current_count')
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('count-display').innerText = "Số người hiện tại: " + data.count;
+          setTimeout(updateCount, 500);
+        });
+    }
+  </script>
+</body>
+</html>
